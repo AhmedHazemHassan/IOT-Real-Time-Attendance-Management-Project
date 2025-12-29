@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Attendance Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .nav-item.active { background-color: #1e293b; border-left: 4px solid #3b82f6; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex overflow-hidden">
+
+    <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 hidden md:flex">
+        <div class="p-6 border-b border-slate-800 flex items-center gap-3">
+            <i class="fa-solid fa-satellite-dish text-blue-500 text-2xl"></i>
+            <h1 class="text-xl font-bold tracking-tight">IoT Access</h1>
+        </div>
+        
+        <nav class="flex-1 py-6 space-y-1">
+            <button onclick="switchView('control')" id="nav-control" class="nav-item w-full flex items-center gap-3 px-6 py-3 hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
+                <i class="fa-solid fa-gamepad w-5"></i> Device Control
+            </button>
+            <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item w-full flex items-center gap-3 px-6 py-3 hover:bg-slate-800 transition-colors text-slate-300 hover:text-white active">
+                <i class="fa-solid fa-chart-pie w-5"></i> Dashboard
+            </button>
+            <button onclick="switchView('users')" id="nav-users" class="nav-item w-full flex items-center gap-3 px-6 py-3 hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
+                <i class="fa-solid fa-users w-5"></i> Users & Enrollment
+            </button>
+            <button onclick="switchView('history')" id="nav-history" class="nav-item w-full flex items-center gap-3 px-6 py-3 hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
+                <i class="fa-solid fa-clock-rotate-left w-5"></i> Access Logs
+            </button>
+            <button onclick="switchView('manual')" id="nav-manual" class="nav-item w-full flex items-center gap-3 px-6 py-3 hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
+                <i class="fa-solid fa-terminal w-5"></i> Manual Override
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
+            System Online ? v2.0
+        </div>
+    </aside>
+
+    <div class="md:hidden fixed w-full bg-slate-900 text-white z-50 flex justify-between items-center p-4 shadow-md">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-satellite-dish text-blue-500"></i>
+            <span class="font-bold">IoT Access</span>
+        </div>
+        <button onclick="document.querySelector('aside').classList.toggle('hidden'); document.querySelector('aside').classList.toggle('absolute');" class="text-slate-300">
+            <i class="fa-solid fa-bars text-xl"></i>
+        </button>
+    </div>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header class="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm z-10 mt-14 md:mt-0">
+            <div>
+                <h2 id="page-title" class="text-2xl font-bold text-slate-800">Overview</h2>
+                <p id="current-date" class="text-sm text-slate-500 mt-1">Loading date...</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="hidden md:block text-right">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Server Status</p>
+                    <div class="flex items-center gap-2 justify-end">
+                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        <span class="text-sm font-medium text-green-600">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8 bg-slate-50 relative">
+            
+            <div id="view-dashboard" class="fade-in space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Total Users</p>
+                            <h3 id="stat-total-users" class="text-3xl font-bold text-slate-800">--</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                            <i class="fa-solid fa-users text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Currently Present</p>
+                            <h3 id="stat-present" class="text-3xl font-bold text-emerald-600">--</h3>
+                        </div>
+                        <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600">
+                            <i class="fa-solid fa-door-open text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500 mb-1">Recent Activity</p>
+                            <h3 id="stat-last-scan" class="text-lg font-bold text-slate-800 truncate">--</h3>
+                            <p class="text-xs text-slate-400">Last scan time</p>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center text-purple-600">
+                            <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h3 class="font-bold text-slate-700">Currently In Room</h3>
+                        <button onclick="loadDashboardData()" class="text-sm text-blue-600 hover:text-blue-800"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                                    <th class="px-6 py-3 font-semibold">User Name</th>
+                                    <th class="px-6 py-3 font-semibold">Check-In Time</th>
+                                    <th class="px-6 py-3 font-semibold">Duration</th>
+                                    <th class="px-6 py-3 font-semibold text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="active-users-body" class="text-sm text-slate-600 divide-y divide-slate-100">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-users" class="hidden fade-in space-y-6">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl shadow-lg p-8 text-white text-center">
+                    <div class="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+                        <i class="fa-solid fa-rss text-3xl animate-pulse"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2">Enrollment Mode Active</h3>
+                    <p class="text-blue-100 max-w-lg mx-auto">
+                        Scan a card on the device. It will appear in the list below. Click 'Register' to assign a name.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100">
+                        <h3 class="font-bold text-slate-700">Registered Directory</h3>
+                    </div>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                                <th class="px-6 py-3">Name</th>
+                                <th class="px-6 py-3">Card ID</th>
+                                <th class="px-6 py-3">Current Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="all-users-body" class="text-sm text-slate-600 divide-y divide-slate-100">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="view-history" class="hidden fade-in space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <h3 class="font-bold text-slate-700">Attendance Log</h3>
+                        <button onclick="loadHistory()" class="bg-white border border-slate-300 text-slate-600 hover:text-blue-600 px-3 py-1 rounded text-xs font-medium shadow-sm transition">
+                            Refresh Data
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-xs text-slate-500 uppercase bg-slate-50 border-b border-slate-200">
+                                    <th class="px-6 py-3">Name</th>
+                                    <th class="px-6 py-3">Check-In Time</th>
+                                    <th class="px-6 py-3">Check-Out Time</th>
+                                    <th class="px-6 py-3">Duration</th>
+                                    <th class="px-6 py-3 text-center">Result</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-body" class="text-sm text-slate-600 divide-y divide-slate-100">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-manual" class="hidden fade-in space-y-6">
+                <div class="max-w-xl mx-auto space-y-6">
+                    <div class="bg-white rounded-xl shadow-md border border-slate-200 p-8">
+                        <div class="text-center mb-6">
+                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-600">
+                                <i class="fa-solid fa-microchip text-3xl"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-slate-800">Manual Override</h3>
+                            <p class="text-slate-500 text-sm mt-2">Simulate a card scan or force a specific state for a user.</p>
+                        </div>
+
+                        <form id="manualForm" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Card ID</label>
+                                <div class="relative">
+                                    <i class="fa-solid fa-id-card absolute left-3 top-3 text-slate-400"></i>
+                                    <input type="number" id="manual_card_id" placeholder="Enter Card ID..." class="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" required>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Action Type</label>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="action_type" value="smart" class="peer sr-only" checked>
+                                        <div class="border border-slate-200 rounded-lg p-3 text-center hover:bg-slate-50 peer-checked:bg-blue-50 peer-checked:border-blue-500 peer-checked:text-blue-700 transition">
+                                            <i class="fa-solid fa-wand-magic-sparkles mb-1 block"></i>
+                                            <span class="text-xs font-bold">Smart Auto</span>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="action_type" value="checkin" class="peer sr-only">
+                                        <div class="border border-slate-200 rounded-lg p-3 text-center hover:bg-slate-50 peer-checked:bg-green-50 peer-checked:border-green-500 peer-checked:text-green-700 transition">
+                                            <i class="fa-solid fa-arrow-right-to-bracket mb-1 block"></i>
+                                            <span class="text-xs font-bold">Force IN</span>
+                                        </div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="radio" name="action_type" value="checkout" class="peer sr-only">
+                                        <div class="border border-slate-200 rounded-lg p-3 text-center hover:bg-slate-50 peer-checked:bg-red-50 peer-checked:border-red-500 peer-checked:text-red-700 transition">
+                                            <i class="fa-solid fa-arrow-right-from-bracket mb-1 block"></i>
+                                            <span class="text-xs font-bold">Force OUT</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition shadow-lg mt-4">
+                                Execute Action
+                            </button>
+                        </form>
+                    </div>
+
+                    <div id="manualResult" class="hidden rounded-xl p-4 border flex items-start gap-4 transition-all">
+                        <div id="resIcon" class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-lg"></div>
+                        <div>
+                            <h4 id="resTitle" class="font-bold text-sm uppercase"></h4>
+                            <p id="resMsg" class="text-sm mt-1"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-control" class="hidden fade-in space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Raspberry Pi Remote Control</h3>
+                    <p class="text-slate-500 mb-8">Select a mode below to start the program on the device remotely.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                        <div onclick="setMode('attendance')" class="cursor-pointer group relative bg-white border-2 border-slate-100 hover:border-emerald-500 rounded-xl p-6 transition-all hover:shadow-lg">
+                            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl group-hover:scale-110 transition">
+                                <i class="fa-solid fa-id-badge"></i>
+                            </div>
+                            <h4 class="font-bold text-lg text-slate-700">Attendance Mode</h4>
+                            <p class="text-xs text-slate-400 mt-2">Auto-detect Check-ins and Check-outs.</p>
+                        </div>
+
+                        <div onclick="setMode('enroll')" class="cursor-pointer group relative bg-white border-2 border-slate-100 hover:border-blue-500 rounded-xl p-6 transition-all hover:shadow-lg">
+                            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl group-hover:scale-110 transition">
+                                <i class="fa-solid fa-plus"></i>
+                            </div>
+                            <h4 class="font-bold text-lg text-slate-700">Enrollment Mode</h4>
+                            <p class="text-xs text-slate-400 mt-2">Scan cards to read their IDs.</p>
+                        </div>
+
+                        <div onclick="setMode('idle')" class="cursor-pointer group relative bg-white border-2 border-slate-100 hover:border-red-500 rounded-xl p-6 transition-all hover:shadow-lg">
+                            <div class="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl group-hover:scale-110 transition">
+                                <i class="fa-solid fa-power-off"></i>
+                            </div>
+                            <h4 class="font-bold text-lg text-slate-700">Stop / Standby</h4>
+                            <p class="text-xs text-slate-400 mt-2">Stop all scanning operations.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 p-4 bg-slate-50 rounded-lg inline-block">
+                        <span class="text-sm font-bold text-slate-500 uppercase mr-2">Current Status:</span>
+                        <span id="current-device-mode" class="text-sm font-mono bg-slate-800 text-white px-2 py-1 rounded">LOADING...</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+    <div id="enrollModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center fade-in">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md transform transition-all scale-100">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                    <i class="fa-solid fa-address-card"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">New Card Detected</h3>
+                <p class="text-slate-500 text-sm">A new RFID card has been scanned. Please assign a user to it.</p>
+            </div>
+            
+            <form id="modalEnrollForm" class="space-y-4" onsubmit="submitRename(event)">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Card ID</label>
+                    <input type="text" id="modal_card_id" class="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 cursor-not-allowed font-mono" readonly>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name</label>
+                    <input type="text" id="modal_name" placeholder="Enter User Name..." class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required autofocus>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 mt-6">
+                    <button type="button" onclick="closeEnrollModal()" class="w-full py-2.5 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-50 transition">Cancel</button>
+                    <button type="submit" class="w-full py-2.5 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 transition shadow-lg">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        // CONFIG
+        const API_BASE = ""; // Empty string = Relative path to server
+        
+        // --- NAVIGATION LOGIC ---
+        function switchView(viewName) {
+            // Update Sidebar
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('active', 'text-white', 'bg-slate-800', 'border-l-4', 'border-blue-500');
+                el.classList.add('text-slate-300');
+            });
+            const navBtn = document.getElementById(`nav-${viewName}`);
+            navBtn.classList.add('active', 'text-white');
+            navBtn.classList.remove('text-slate-300');
+
+            // Update Titles
+            const titles = {
+                'dashboard': 'System Overview',
+                'users': 'User Management',
+                'history': 'Access Logs',
+                'manual': 'Manual Override',
+                'control': 'Device Management'
+            };
+            document.getElementById('page-title').innerText = titles[viewName];
+
+            // Toggle Views
+            document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+            // Load Data
+            if (viewName === 'dashboard') loadDashboardData();
+            if (viewName === 'users') loadUsers();
+            if (viewName === 'history') loadHistory();
+            if (viewName === 'control') updateDeviceStatus();
+        }
+
+        // --- DATA FETCHING ---
+        async function fetchAPI(endpoint, method = 'GET', body = null) {
+            try {
+                const opts = { method, headers: { 'Content-Type': 'application/json' } };
+                if (body) opts.body = JSON.stringify(body);
+                const res = await fetch(`${API_BASE}/api${endpoint}`, opts);
+                return await res.json();
+            } catch (err) {
+                showToast('Server Connection Failed', 'error');
+                return null;
+            }
+        }
+
+        // --- 1. DASHBOARD LOGIC ---
+        async function loadDashboardData() {
+            const users = await fetchAPI('/users'); // Use /users to calculate live stats
+            if (!users) return;
+
+            const total = users.length;
+            const presentList = users.filter(u => u.active_checkin);
+            const present = presentList.length;
+
+            // Update Stats
+            document.getElementById('stat-total-users').innerText = total;
+            document.getElementById('stat-present').innerText = present;
+
+            // Populate Table
+            const tbody = document.getElementById('active-users-body');
+            tbody.innerHTML = '';
+
+            if (present === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-400">No users currently checked in.</td></tr>`;
+            } else {
+                // Sort by check-in time (newest first)
+                presentList.sort((a, b) => new Date(b.active_checkin) - new Date(a.active_checkin));
+                
+                // Update "Last Scan"
+                document.getElementById('stat-last-scan').innerText = presentList[0].active_checkin.split(' ')[1]; // Time only
+
+                presentList.forEach(u => {
+                    const checkIn = new Date(u.active_checkin);
+                    const now = new Date();
+                    const diffMs = now - checkIn;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const hours = Math.floor(diffMins / 60);
+                    const mins = diffMins % 60;
+                    
+                    const durationStr = `${hours}h ${mins}m`;
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="px-6 py-4 font-medium text-slate-800">${u.name}</td>
+                            <td class="px-6 py-4 text-slate-500 font-mono">${u.active_checkin}</td>
+                            <td class="px-6 py-4 text-blue-600 font-bold">${durationStr}</td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold uppercase">Online</span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // --- 2. USERS LOGIC ---
+        async function loadUsers() {
+            const users = await fetchAPI('/users');
+            const tbody = document.getElementById('all-users-body');
+            tbody.innerHTML = '';
+            
+            // SORTING: Put "Unknown" cards at the top
+            users.sort((a, b) => {
+                const aIsUnknown = a.name.startsWith("Unknown Card");
+                const bIsUnknown = b.name.startsWith("Unknown Card");
+                if (aIsUnknown && !bIsUnknown) return -1;
+                if (!aIsUnknown && bIsUnknown) return 1;
+                return 0;
+            });
+
+            users.forEach(u => {
+                const isPending = u.name.startsWith("Unknown Card");
+                
+                // If pending, show Yellow row + Register Button. If normal, show standard row.
+                let rowClass = isPending ? "bg-yellow-50 border-l-4 border-yellow-400" : "hover:bg-slate-50 transition border-b border-slate-50";
+                let actionArea = isPending 
+                    ? `<button onclick="openRenameModal('${u.card_id}')" class="bg-blue-600 text-white px-3 py-1 rounded text-xs font-bold hover:bg-blue-700 shadow-sm">Register</button>`
+                    : `<span class="text-xs text-slate-400">Registered</span>`;
+
+                let statusHtml = u.active_checkin 
+                    ? `<span class="text-emerald-600 font-bold text-xs">Present</span>`
+                    : `<span class="text-slate-400 text-xs">Away</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td class="px-6 py-4 font-medium text-slate-800">
+                            ${u.name} 
+                            ${isPending ? '<span class="ml-2 text-[10px] bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded uppercase font-bold">New</span>' : ''}
+                        </td>
+                        <td class="px-6 py-4 text-slate-500 font-mono text-xs">${u.card_id}</td>
+                        <td class="px-6 py-4 flex justify-between items-center">
+                            ${statusHtml}
+                            ${actionArea}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('enrollForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const card_id = document.getElementById('reg_card_id').value;
+            const name = document.getElementById('reg_name').value;
+            
+            const res = await fetchAPI('/enroll', 'POST', { card_id, name });
+            if (res && res.status === 'success') {
+                showToast(`Enrolled ${name} successfully!`, 'success');
+                document.getElementById('reg_card_id').value = '';
+                document.getElementById('reg_name').value = '';
+                loadUsers(); // Refresh list
+            } else {
+                showToast(res.message || 'Enrollment Failed', 'error');
+            }
+        });
+
+        // --- 3. HISTORY LOGIC ---
+        async function loadHistory() {
+            const logs = await fetchAPI('/history');
+            const tbody = document.getElementById('history-body');
+            tbody.innerHTML = '';
+
+            if (logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">No history records found.</td></tr>`;
+                return;
+            }
+
+            logs.forEach(log => {
+                // Log structure: [name, check_in, check_out, duration]
+                const name = log[0];
+                const checkIn = log[1];
+                const checkOut = log[2];
+                const duration = log[3];
+
+                let statusBadge, rowClass;
+                
+                if (checkOut) {
+                    statusBadge = `<span class="text-xs font-bold text-slate-400 uppercase">Completed</span>`;
+                    rowClass = "";
+                } else {
+                    statusBadge = `<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold uppercase animate-pulse">Active</span>`;
+                    rowClass = "bg-blue-50/50";
+                }
+
+                tbody.innerHTML += `
+                    <tr class="${rowClass} hover:bg-slate-50 transition border-b border-slate-50">
+                        <td class="px-6 py-4 font-medium text-slate-800">${name}</td>
+                        <td class="px-6 py-4 text-slate-500 font-mono text-xs">${checkIn}</td>
+                        <td class="px-6 py-4 text-slate-500 font-mono text-xs">${checkOut || '--'}</td>
+                        <td class="px-6 py-4 text-slate-600 font-medium">${duration || '--'}</td>
+                        <td class="px-6 py-4 text-center">${statusBadge}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- 4. MANUAL OVERRIDE LOGIC ---
+        document.getElementById('manualForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const card_id = document.getElementById('manual_card_id').value;
+            const type = document.querySelector('input[name="action_type"]:checked').value;
+            
+            const payload = { card_id };
+            if (type !== 'smart') payload.type = type;
+
+            const res = await fetchAPI('/scan', 'POST', payload);
+            const resBox = document.getElementById('manualResult');
+            const resIcon = document.getElementById('resIcon');
+            const resTitle = document.getElementById('resTitle');
+            const resMsg = document.getElementById('resMsg');
+
+            resBox.classList.remove('hidden', 'bg-emerald-50', 'bg-red-50', 'bg-amber-50', 'border-emerald-200', 'border-red-200', 'border-amber-200');
+            resIcon.className = 'w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-lg';
+            
+            if (res.status === 'success' || res.status === 'checkin' || res.status === 'checkout') {
+                resBox.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+                resIcon.classList.add('bg-emerald-200', 'text-emerald-700');
+                resIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
+                showToast('Action Successful', 'success');
+                // Clean input
+                document.getElementById('manual_card_id').value = '';
+            } else if (res.status === 'warning') {
+                resBox.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-800');
+                resIcon.classList.add('bg-amber-200', 'text-amber-700');
+                resIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            } else {
+                resBox.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+                resIcon.classList.add('bg-red-200', 'text-red-700');
+                resIcon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                showToast('Action Failed', 'error');
+            }
+
+            resTitle.innerText = res.status.toUpperCase();
+            resMsg.innerText = res.message;
+        });
+
+        // --- 5. DEVICE CONTROL LOGIC ---
+        async function setMode(mode) {
+            const res = await fetchAPI('/mode', 'POST', { mode });
+            if (res && res.status === 'success') {
+                showToast(`Device switched to ${mode.toUpperCase()} mode`, 'success');
+                updateDeviceStatus();
+            } else {
+                showToast('Failed to switch mode', 'error');
+            }
+        }
+
+        async function updateDeviceStatus() {
+            const res = await fetchAPI('/mode');
+            if (res) {
+                const el = document.getElementById('current-device-mode');
+                el.innerText = res.mode.toUpperCase();
+                
+                // Color coding
+                el.className = 'text-sm font-mono px-3 py-1 rounded font-bold transition-colors ' + 
+                    (res.mode === 'attendance' ? 'bg-emerald-100 text-emerald-700' : 
+                     res.mode === 'enroll' ? 'bg-blue-100 text-blue-700' : 
+                     'bg-slate-200 text-slate-600');
+            }
+        }
+
+// Handle the Modal Submit
+        function openRenameModal(cardId) {
+            console.log("Opening Modal for ID:", cardId);
+            const modal = document.getElementById('enrollModal');
+            modal.classList.remove('hidden');
+            document.getElementById('modal_card_id').value = cardId;
+            document.getElementById('modal_name').value = '';
+            document.getElementById('modal_name').focus();
+            
+            document.querySelector('#enrollModal h3').innerText = "Register User";
+            document.querySelector('#enrollModal p').innerText = "Assign a name to this card.";
+        }
+
+        function closeEnrollModal() {
+            document.getElementById('enrollModal').classList.add('hidden');
+        }
+
+        // --- NEW: DIRECT SUBMIT FUNCTION ---
+        async function submitRename(event) {
+            event.preventDefault(); // Stop page reload
+            console.log("Submit triggered via HTML attribute!"); 
+
+            const card_id = document.getElementById('modal_card_id').value;
+            const name = document.getElementById('modal_name').value;
+            
+            // Call the API
+            const res = await fetchAPI('/rename', 'POST', { card_id, name });
+            
+            if (res && res.status === 'success') {
+                showToast(`Registered ${name} successfully!`, 'success');
+                closeEnrollModal();
+                loadUsers(); // Refresh the list immediately
+            } else {
+                showToast('Error updating user', 'error');
+            }
+        }
+
+        // --- UTILS ---
+        function updateDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date').innerText = new Date().toLocaleDateString(undefined, options);
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let colors = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-red-600' : 'bg-slate-700';
+            let icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-exclamation' : 'fa-info-circle';
+
+            toast.className = `${colors} text-white px-6 py-3 rounded shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span class="font-medium">${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- INIT & EVENT LISTENERS ---
+        window.addEventListener('load', () => {
+            console.log("DASHBOARD SCRIPT V4 LOADED");
+            updateDate();
+            loadDashboardData();
+            updateDeviceStatus();
+            
+            // Pollers
+            setInterval(() => {
+                if (!document.getElementById('view-dashboard').classList.contains('hidden')) {
+                    loadDashboardData();
+                }
+            }, 5000);
+
+            setInterval(updateDeviceStatus, 3000);
+        });
+
+    </script>
+</body>
+</html>
